@@ -1,7 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, StyleSheet, Text, Modal, Share, useWindowDimensions } from 'react-native';
+import {
+  View,
+  Image,
+  StyleSheet,
+  Text,
+  Modal,
+  Share,
+  useWindowDimensions,
+} from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+} from 'react-native-responsive-screen';
+
 import { SwiperFlatList } from 'react-native-swiper-flatlist';
 
 const data = [
@@ -25,15 +38,18 @@ const data = [
 
 const SlideItem = ({ item }) => {
   return (
-    <Image
-      source={item.image}
-      style={styles.slideImage}
-    />
+    <View style={styles.slideContainer}>
+      <Image
+        source={item.image}
+        style={styles.slideImage}
+      />
+    </View>
   );
 };
 
 const Slide = () => {
-  const windowHeight = useWindowDimensions().height; // Obtém a altura da tela
+  const windowHeight = useWindowDimensions().height;
+
   const [showModal, setShowModal] = useState(true);
 
   useEffect(() => {
@@ -41,50 +57,66 @@ const Slide = () => {
       setShowModal(false);
     }, 2500);
 
-    return () => {
-      clearTimeout(timer);
-    };
+    return () => clearTimeout(timer);
   }, []);
 
   const shareImage = async () => {
     try {
       await Share.share({
-        message: 'Vi essa imagem e lembrei de você! "Direto do App MindRest."',
-        url: data[0].image.uri,
+        message:
+          'Vi essa imagem e lembrei de você! "Direto do App MindRest."',
       });
     } catch (error) {
-      console.error(error.message);
+      console.log(error);
     }
   };
 
   return (
     <View style={styles.container}>
+      {/* Modal Inicial */}
       <Modal visible={showModal} animationType="fade" transparent>
         <View style={styles.modalContainer}>
           <Image
             source={require('../../assets/albuns/arraste.gif')}
-            style={{ width: wp('70%'), height: hp('30%'), marginTop: hp('47%') }}
+            style={styles.gif}
             resizeMode="contain"
           />
         </View>
       </Modal>
 
-      <View style={[styles.footer, { bottom: windowHeight - hp('100%') }]}>
+      {/* Footer */}
+      <View
+        style={[
+          styles.footer,
+          {
+            bottom: windowHeight - hp('100%'),
+          },
+        ]}
+      >
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: 'white', textAlign: 'center' }}></Text>
+          <Text style={styles.footerText}></Text>
         </View>
+
         <Ionicons
           name="share-outline"
           onPress={shareImage}
-          style={{ fontSize: 30, color: 'white', marginBottom: hp('1%') }}
+          style={styles.shareIcon}
         />
       </View>
 
-<SwiperFlatList
-  autoplay
-  autoplayDelay={3}
-  vertical
-></SwiperFlatList>
+      {/* Slides */}
+      <SwiperFlatList
+        vertical
+        autoplay
+        autoplayDelay={3}
+        autoplayLoop
+        index={0}
+        showPagination={true}
+        paginationStyleItem={{ width: 8, height: 8 }}
+        data={data}
+        renderItem={({ item }) => <SlideItem item={item} />}
+        keyExtractor={(_, index) => index.toString()}
+      />
     </View>
   );
 };
@@ -93,34 +125,55 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
+  },
+
+  slideContainer: {
     width: wp('100%'),
     height: hp('100%'),
-    position: 'relative',
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    zIndex: 1,
-    padding: hp('1%'),
-    alignItems: 'center',
-  },
+
   slideImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+  },
+
+  gif: {
+    width: wp('70%'),
+    height: hp('30%'),
+  },
+
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 10,
+
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+
+    paddingHorizontal: wp('4%'),
+    paddingVertical: hp('1.5%'),
+  },
+
+  footerText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+  },
+
+  shareIcon: {
+    fontSize: 30,
+    color: 'white',
   },
 });
 
