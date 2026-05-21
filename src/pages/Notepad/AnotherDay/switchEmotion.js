@@ -1,60 +1,82 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-
+import * as Animatable from 'react-native-animatable';
 
 const SwitchEmotion = ({ route }) => {
     const navigation = useNavigation();
-    const { selectedButtons, emotionId, symbol, selectedDate } = route.params;
 
-    const handleEmotionSwitch = (selectedButtons, emotionId, symbol) => {
-        navigation.navigate('ADWrite', { selectedButtons, emotionId, symbol, selectedDate  });
+    const {
+        selectedButtons = [],
+        emotionId,
+        symbol,
+        selectedDate
+    } = route.params || {};
+
+    const handleEmotionSwitch = (newEmotionId, newSymbol) => {
+        navigation.navigate('ADWrite', {
+            selectedButtons,
+            emotionId: newEmotionId,
+            symbol: newSymbol,
+            selectedDate
+        });
     };
 
     return (
         <View style={styles.container}>
-            <View style={styles.containerEmotion}>
-                <Text style={styles.title}> Como você está se sentindo? </Text>
+            <Animatable.View
+                style={styles.containerEmotion}
+                animation="fadeInLeft"
+            >
+                <Animatable.Text
+                    style={styles.title}
+                    animation="fadeInDown"
+                >
+                    Como você está se sentindo?
+                </Animatable.Text>
+
                 <TouchableOpacity
                     style={[styles.buttonEmotion, { backgroundColor: '#bbf7d0' }]}
-                    onPress={() => handleEmotionSwitch(selectedButtons, "radiante", "😀")}
+                    onPress={() => handleEmotionSwitch('radiante', '😀')}
                 >
                     <Text style={styles.emotion}>😀</Text>
-                    <Text style={styles.text}> Radiante </Text>
+                    <Text style={styles.text}>Radiante</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     style={[styles.buttonEmotion, { backgroundColor: '#dcfce7' }]}
-                    onPress={() => handleEmotionSwitch(selectedButtons,"feliz", "😊")}
+                    onPress={() => handleEmotionSwitch('feliz', '😊')}
                 >
                     <Text style={styles.emotion}>😊</Text>
-                    <Text style={styles.text}> Feliz </Text>
+                    <Text style={styles.text}>Feliz</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     style={[styles.buttonEmotion, { backgroundColor: '#fafafa' }]}
-                    onPress={() => handleEmotionSwitch(selectedButtons, "normal", "😐")}
+                    onPress={() => handleEmotionSwitch('normal', '😐')}
                 >
                     <Text style={styles.emotion}>😐</Text>
-                    <Text style={styles.text}> Normal </Text>
+                    <Text style={styles.text}>Normal</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     style={[styles.buttonEmotion, { backgroundColor: '#fee2e2' }]}
-                    onPress={() => handleEmotionSwitch(selectedButtons, "irritado", "😠")}
+                    onPress={() => handleEmotionSwitch('irritado', '😠')}
                 >
                     <Text style={styles.emotion}>😠</Text>
-                    <Text style={styles.text}> Irritado </Text>
+                    <Text style={styles.text}>Irritado</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                     style={[styles.buttonEmotion, { backgroundColor: '#fecaca' }]}
-                    onPress={() => handleEmotionSwitch(selectedButtons, "triste", "😥")}
+                    onPress={() => handleEmotionSwitch('triste', '😥')}
                 >
                     <Text style={styles.emotion}>😥</Text>
-                    <Text style={styles.text}> Triste </Text>
+                    <Text style={styles.text}>Triste</Text>
                 </TouchableOpacity>
-            </View>
+
+            </Animatable.View>
         </View>
     );
 };
@@ -64,38 +86,41 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#8896d7',
     },
+
     title: {
         color: 'white',
         fontWeight: 'bold',
         fontSize: wp('6%'),
-        alignItems: 'flex-start'
+        marginBottom: hp('2%'),
     },
+
     containerEmotion: {
         flex: 1,
         width: wp('100%'),
         justifyContent: 'center',
         alignItems: 'center',
     },
+
     buttonEmotion: {
         flexDirection: 'row',
         marginTop: 15,
         alignItems: 'center',
         paddingLeft: wp('4%'),
-        backgroundColor: '#428cfd',
         width: wp('90%'),
         height: hp('9%'),
         borderRadius: 10,
     },
+
     text: {
         fontSize: wp('5%'),
         marginLeft: wp('2.5%'),
         fontWeight: 'bold',
         color: '#556aa9'
     },
+
     emotion: {
         fontSize: wp('7%'),
     },
-
 });
 
 export default SwitchEmotion;

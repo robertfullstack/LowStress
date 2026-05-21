@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Platform
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 

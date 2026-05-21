@@ -1,19 +1,48 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, FlatList, Platform } from 'react-native';
+import {
+    View,
+    StyleSheet,
+    TouchableOpacity,
+    Text,
+    FlatList,
+    Platform,
+    ActivityIndicator
+} from 'react-native';
+
 import CalendarStrip from 'react-native-calendar-strip';
 import { useNavigation } from '@react-navigation/native';
-import 'moment/locale/pt-br';
+
 import moment from 'moment';
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import 'moment/locale/pt-br';
+
+import {
+    widthPercentageToDP as wp,
+    heightPercentageToDP as hp
+} from 'react-native-responsive-screen';
+
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { parse, format } from 'date-fns';
-import { id, ptBR } from 'date-fns/locale';
+
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
 import Registers from './Registers';
+
 import { db } from '../../firebaseConnection';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+
+import {
+    collection,
+    query,
+    where,
+    getDocs
+} from 'firebase/firestore';
+
 import { AuthContext } from '../../context/auth';
+
 import * as Animatable from 'react-native-animatable';
+
 import { FontAwesome } from '@expo/vector-icons';
+
+moment.locale('pt-br');
 
 const expressions = [
     { id: 'radiante', symbol: '😀' },
@@ -24,166 +53,291 @@ const expressions = [
 ];
 
 const Notepad = () => {
+
     const { user } = useContext(AuthContext);
+
     const navigation = useNavigation();
-    const [selectedDate, setSelectedDate] = useState(null);
+
+    const [selectedDate, setSelectedDate] = useState(new Date());
+
     const [showPicker, setShowPicker] = useState(false);
+
     const [selectedButton, setSelectedButton] = useState('');
+
     const [registros, setRegistros] = useState([]);
+
     const [refreshing, setRefreshing] = useState(false);
+
+    const [loading, setLoading] = useState(true);
 
     const registrosRef = collection(db, 'Registros');
 
-    const handleRefresh = async () => {
-        setRefreshing(true);
-        // Aqui você pode fazer uma nova busca pelos registros atualizados
-        const fetchRegistros = async () => {
-            const querry = query(registrosRef, where('userID', '==', user.uid));
-            const querySnapshot = await getDocs(querry);
-            const registros = [];
-            querySnapshot.forEach((doc) => {
-                const { selectedButtons, emotionId, symbol, formattedDate, todayActivity, todayFeelings, todayThoughts, todayLearn, todayGrateful } = doc.data(); // Obter os campos desejados do documento
-                registros.push({ id: doc.id, selectedButtons, emotionId, symbol, formattedDate, todayActivity, todayFeelings, todayThoughts, todayLearn, todayGrateful });
-            });
-            setRegistros(registros);
-        };
+    async function fetchRegistros() {
 
-        fetchRegistros();
-        // ...
-        setTimeout(() => {
-            setRefreshing(false);
-        }, 1000);
-    };
+        try {
+
+            if (!user?.uid) {
+                return;
+            }
+
+            const q = query(
+                registrosRef,
+                where('userID', '==', user.uid)
+            );
+
+            const querySnapshot = await getDocs(q);
+
+            const lista = [];
+
+            querySnapshot.forEach((docItem) => {
+
+                const data = docItem.data();
+
+                lista.push({
+                    id: docItem.id,
+                    ...data
+                });
+
+            });
+
+            setRegistros(lista);
+
+        } catch (error) {
+
+            console.log('Erro ao buscar registros:', error);
+
+        } finally {
+
+            setLoading(false);
+
+        }
+    }
 
     useEffect(() => {
-        const fetchRegistros = async () => {
-            const querry = query(registrosRef, where('userID', '==', user.uid));
-            const querySnapshot = await getDocs(querry);
-            const registros = [];
-            querySnapshot.forEach((doc) => {
-                const { selectedButtons, emotionId, symbol, formattedDate, todayActivity, todayFeelings, todayThoughts, todayLearn, todayGrateful } = doc.data(); // Obter os campos desejados do documento
-                registros.push({ id: doc.id, selectedButtons, emotionId, symbol, formattedDate, todayActivity, todayFeelings, todayThoughts, todayLearn, todayGrateful });
-            });
-            setRegistros(registros);
-        };
 
         fetchRegistros();
-    }, [user.uid]);
 
-    const handleButtonPress = (emotionId, symbol) => {
-        if (emotionId === selectedButton) {
-            setSelectedButton('');
-        } else {
-            setSelectedButton(emotionId);
-            navigation.navigate('SelectButtons', { emotionId, symbol });
+    }, [user]);
+
+    const handleRefresh = async () => {
+
+        try {
+
+            setRefreshing(true);
+
+            await fetchRegistros();
+
+        } catch (error) {
+
+            console.log(error);
+
+        } finally {
+
+            setTimeout(() => {
+                setRefreshing(false);
+            }, 800);
+
         }
     };
 
-    const [date, setDate] = useState(new Date());
-    moment.locale('pt-br');
+    const handleButtonPress = (emotionId, symbol) => {
+
+        setSelectedButton(emotionId);
+
+        navigation.navigate('SelectButtons', {
+            emotionId,
+            symbol
+        });
+    };
 
     const openDatePicker = () => {
         setShowPicker(true);
     };
 
-
     const handleDateChange = (event, date) => {
+
         setShowPicker(false);
-        if (event.type === 'set' && date !== undefined) {
-            const selectedDate = new Date(date);
-            navigation.navigate('ChooseEmotion', { selectedDate: formatDate(selectedDate) });
+
+        if (event.type === 'dismissed') {
+            return;
+        }
+
+        if (date) {
+
+            setSelectedDate(date);
+
+            navigation.navigate('ChooseEmotion', {
+                selectedDate: formatDate(date)
+            });
         }
     };
 
     const formatDate = (date) => {
-        return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+
+        try {
+
+            return format(
+                date,
+                "dd 'de' MMMM 'de' yyyy",
+                { locale: ptBR }
+            );
+
+        } catch (error) {
+
+            return '';
+
+        }
     };
 
+    if (loading) {
+
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#fff" />
+            </View>
+        );
+    }
+
     return (
+
         <View style={styles.container}>
+
             <CalendarStrip
-                calendarAnimation={{ type: 'sequence', duration: 30 }}
-                daySelectionAnimation={{ type: 'border', duration: 200, borderWidth: 1, borderHighlightColor: 'white' }}
-                style={{ height: 100, paddingTop: 10, paddingBottom: 5, pointerEvents: 'none' }}
-                calendarHeaderStyle={{ color: 'white' }}
+                scrollable
+                style={styles.calendar}
                 calendarColor={'#556aa9'}
+                calendarHeaderStyle={{ color: 'white' }}
                 dateNumberStyle={{ color: 'white' }}
                 dateNameStyle={{ color: 'white' }}
                 highlightDateNumberStyle={{ color: 'yellow' }}
                 highlightDateNameStyle={{ color: 'yellow' }}
-                disabledDateNameStyle={{ color: 'grey' }}
-                disabledDateNumberStyle={{ color: 'grey' }}
+                disabledDateNameStyle={{ color: 'gray' }}
+                disabledDateNumberStyle={{ color: 'gray' }}
                 iconContainer={{ opacity: 0 }}
-                locale={{
-                    name: 'pt-br',
-                    config: {
-                        months: 'Janeiro_Fevereiro_Março_Abril_Maio_Junho_Julho_Agosto_Setembro_Outubro_Novembro_Dezembro'.split('_'),
-                        weekdaysShort: 'Dom_Seg_Ter_Qua_Qui_Sex_Sáb'.split('_'),
-                        weekdays: 'Domingo_Segunda_Terça_Quarta_Quinta_Sexta_Sábado'.split('_')
-                    }
-                }}
-                selectedDate={date}
+                selectedDate={selectedDate}
             />
 
-            <Animatable.View style={styles.containerButtons} animation='fadeInDown'>
-                <Text style={styles.textEmoticons}>Como se sente hoje?</Text>
+            <Animatable.View
+                style={styles.containerButtons}
+                animation='fadeInDown'
+            >
+
+                <Text style={styles.textEmoticons}>
+                    Como se sente hoje?
+                </Text>
+
                 <View style={styles.emoticons}>
+
                     {expressions.map(({ id, symbol }) => (
+
                         <TouchableOpacity
                             key={id}
-                            style={[
-                                styles.roundButton,
-                                selectedButton === id,
-                            ]}
-                            onPress={() => handleButtonPress(id, symbol)}
+                            style={styles.roundButton}
+                            onPress={() =>
+                                handleButtonPress(id, symbol)
+                            }
                         >
-                            <Text style={styles.emotion}>{symbol}</Text>
+
+                            <Text style={styles.emotion}>
+                                {symbol}
+                            </Text>
+
                         </TouchableOpacity>
+
                     ))}
+
                 </View>
+
             </Animatable.View>
 
             <View style={styles.title}>
-                <Animatable.Text style={styles.textDaily} animation="fadeInLeft">
+
+                <Animatable.Text
+                    style={styles.textDaily}
+                    animation="fadeInLeft"
+                >
                     Meu Diário
                 </Animatable.Text>
+
                 <TouchableOpacity onPress={handleRefresh}>
+
                     <Animatable.View
-                        animation={refreshing ? 'rotate' : ''}
+                        animation={refreshing ? 'rotate' : undefined}
                         easing="linear"
-                        iterationCount="infinite"
+                        iterationCount={refreshing ? 'infinite' : 1}
                         duration={1000}
                     >
-                        <FontAwesome name="refresh" size={24} color="white" />
+
+                        <FontAwesome
+                            name="refresh"
+                            size={24}
+                            color="white"
+                        />
+
                     </Animatable.View>
+
                 </TouchableOpacity>
+
             </View>
-            {registros && registros.length > 0 ? (
+
+            {registros.length > 0 ? (
+
                 <FlatList
-                    animation='fadeInDown'
-                    contentContainerStyle={{ paddingHorizontal: wp('1%') }}
+                    data={registros}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={{
+                        paddingHorizontal: wp('1%'),
+                        paddingBottom: hp('10%')
+                    }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
-                    data={registros}
-                    renderItem={({ item }) => <Registers data={item} />}
+                    renderItem={({ item }) => (
+                        <Registers data={item} />
+                    )}
                 />
+
             ) : (
-                <Animatable.Text style={styles.emptyText} animation='fadeInLeft' >Nenhum registro encontrado.</Animatable.Text>
+
+                <Animatable.Text
+                    style={styles.emptyText}
+                    animation='fadeInLeft'
+                >
+                    Nenhum registro encontrado.
+                </Animatable.Text>
+
             )}
 
-            <Animatable.View style={styles.footer} animation='fadeInUp'>
-                <TouchableOpacity style={styles.buttonFooter} onPress={openDatePicker}>
-                    <Text style={styles.textButton}>Registre o seu dia!</Text>
+            <Animatable.View
+                style={styles.footer}
+                animation='fadeInUp'
+            >
+
+                <TouchableOpacity
+                    style={styles.buttonFooter}
+                    onPress={openDatePicker}
+                >
+
+                    <Text style={styles.textButton}>
+                        Registre o seu dia!
+                    </Text>
+
                 </TouchableOpacity>
+
             </Animatable.View>
 
             {showPicker && (
+
                 <DateTimePicker
-                    value={selectedDate || new Date()}
+                    value={selectedDate}
                     mode="date"
-                    display={Platform.OS === 'android' ? 'calendar' : 'default'}
+                    display={
+                        Platform.OS === 'android'
+                            ? 'calendar'
+                            : 'default'
+                    }
                     onChange={handleDateChange}
                 />
+
             )}
 
         </View>
@@ -195,6 +349,19 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#8896d7',
+    },
+
+    loadingContainer: {
+        flex: 1,
+        backgroundColor: '#8896d7',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+
+    calendar: {
+        height: 100,
+        paddingTop: 10,
+        paddingBottom: 5,
     },
 
     containerButtons: {
@@ -210,24 +377,11 @@ const styles = StyleSheet.create({
         color: 'white'
     },
 
-    textDaily: {
-        fontSize: hp('2.5%'),
-        fontWeight: 'bold',
-        color: 'white'
-    },
-
-    emptyText: {
-        marginTop: wp('2%'),
-        paddingStart: wp('4%'),
-        fontSize: hp('1.8%'),
-        color: 'gray'
-    },
-
     emoticons: {
         flexDirection: 'row',
         justifyContent: 'space-evenly',
         alignItems: 'center',
-        top: '5%'
+        marginTop: hp('3%')
     },
 
     roundButton: {
@@ -238,9 +392,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#556aa9',
         justifyContent: 'center',
         alignItems: 'center',
-        shadowOpacity: 0.5,
-        shadowRadius: 5.65,
-        elevation: 9,
+        elevation: 6,
         paddingHorizontal: wp('4.5%'),
     },
 
@@ -248,37 +400,45 @@ const styles = StyleSheet.create({
         fontSize: wp('6%'),
     },
 
+    title: {
+        justifyContent: 'space-between',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: wp('4%'),
+        marginBottom: hp('2%')
+    },
+
+    textDaily: {
+        fontSize: hp('2.5%'),
+        fontWeight: 'bold',
+        color: 'white'
+    },
+
+    emptyText: {
+        marginTop: wp('2%'),
+        paddingStart: wp('4%'),
+        fontSize: hp('1.8%'),
+        color: '#eee'
+    },
+
     footer: {
         position: 'absolute',
-        bottom: 0,
-        width: wp('100%'),
-        height: hp('7%'),
-        backgroundColor: 'transparent',
-        justifyContent: 'center',
-        alignItems: 'flex-end'
+        bottom: hp('2%'),
+        right: wp('2%'),
     },
 
     buttonFooter: {
         alignItems: 'center',
         justifyContent: 'center',
-        width: wp('35%'),
-        height: hp('5%'),
+        width: wp('40%'),
+        height: hp('5.5%'),
         borderRadius: 50,
         backgroundColor: '#3c4383',
-        marginEnd: wp('2.5%'),
     },
 
     textButton: {
         fontWeight: 'bold',
         color: 'white'
-    },
-    title: {
-        justifyContent: 'space-between',
-        flexDirection: 'row',
-        alignItems: 'center',
-        height: hp('5%'),
-        paddingStart: wp('4%'),
-        paddingEnd: wp('4%'),
     }
 
 });
