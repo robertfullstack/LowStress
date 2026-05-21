@@ -6,9 +6,11 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:web": "expo export --platform web"
   },
   "dependencies": {
+    "@expo/vector-icons": "^13.0.0",
     "@expo/webpack-config": "^18.0.1",
     "@hookform/resolvers": "^3.1.1",
     "@react-native-async-storage/async-storage": "1.17.11",
@@ -36,7 +38,6 @@
     "react-native-swiper-flatlist": "^3.2.5",
     "react-native-vector-icons": "^9.2.0",
     "react-native-web": "~0.18.10",
-    "undefined": "@hookform/resolvers/yup",
     "yup": "^1.2.0"
   },
   "devDependencies": {
