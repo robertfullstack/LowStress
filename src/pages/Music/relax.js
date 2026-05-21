@@ -1,129 +1,244 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, Image} from 'react-native';
+import {
+    View,
+    Text,
+    StyleSheet,
+    SafeAreaView,
+    TouchableOpacity,
+    Platform,
+} from 'react-native';
+
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import relaxSongs from "./model/relax";
 import { Audio } from 'expo-av';
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import * as Animatable from 'react-native-animatable'
-import { useNavigation } from '@react-navigation/native'; 
+import {
+    widthPercentageToDP as wp,
+    heightPercentageToDP as hp
+} from 'react-native-responsive-screen';
 
-export default function Music() {
+import * as Animatable from 'react-native-animatable';
+import { useNavigation } from '@react-navigation/native';
+
+export default function Relax() {
 
     const navigation = useNavigation();
-    const [sound, setSound] = useState(null);
+
     const [songIndex, setSongIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
     const [currentDuration, setCurrentDuration] = useState(0);
     const [totalDuration, setTotalDuration] = useState(0);
-    
-    const soundRef = useRef(null); 
+
+    const soundRef = useRef(null);
 
     useEffect(() => {
         loadAudio();
 
         return () => {
-            if (soundRef.current) {
-                soundRef.current.unloadAsync(); // Interrompe a reprodução do áudio
-            }
+            unloadAudio();
         };
     }, []);
 
     useEffect(() => {
-        const interval = setInterval(async () => {
-          const status = await sound.getStatusAsync();
-          const currentDuration = status.positionMillis || 0;
-          const totalDuration = status.durationMillis || 0;
-          const progress = totalDuration !== 0 ? currentDuration / totalDuration : 0;
-          setProgress(progress);
-          setCurrentDuration(currentDuration);
-          setTotalDuration(totalDuration);
-        }, 1000);
-        return () => clearInterval(interval);
-      }, [sound]);      
+        let interval = null;
 
-    async function loadAudio() {
+        if (soundRef.current) {
+            interval = setInterval(async () => {
+                try {
+                    const status = await soundRef.current.getStatusAsync();
+
+                    if (!status.isLoaded) return;
+
+                    const current = status.positionMillis || 0;
+                    const total = status.durationMillis || 0;
+
+                    setCurrentDuration(current);
+                    setTotalDuration(total);
+
+                    if (total > 0) {
+                        setProgress(current / total);
+                    }
+
+                } catch (error) {
+                    console.log("Erro ao atualizar progresso:", error);
+                }
+            }, 1000);
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+
+    }, [songIndex]);
+
+    async function loadAudio(index = songIndex) {
         try {
-            const { sound } = await Audio.Sound.createAsync(relaxSongs[songIndex].url);
-            setSound(sound);
-            soundRef.current = sound; 
+
+            if (!relaxSongs[index]) {
+                console.log("Música não encontrada");
+                return;
+            }
+
+            await unloadAudio();
+
+            const { sound } = await Audio.Sound.createAsync(
+                relaxSongs[index].url,
+                { shouldPlay: false }
+            );
+
+            soundRef.current = sound;
+
         } catch (error) {
-            console.log(error);
+            console.log("Erro ao carregar áudio:", error);
+        }
+    }
+
+    async function unloadAudio() {
+        try {
+            if (soundRef.current) {
+                await soundRef.current.unloadAsync();
+                soundRef.current = null;
+            }
+        } catch (error) {
+            console.log("Erro ao descarregar áudio:", error);
         }
     }
 
     async function playSound() {
         try {
+
+            if (!soundRef.current) {
+                await loadAudio(songIndex);
+            }
+
             await soundRef.current.playAsync();
             setIsPlaying(true);
+
         } catch (error) {
-            console.log(error);
+            console.log("Erro ao reproduzir áudio:", error);
         }
     }
-    
+
     async function pauseSound() {
         try {
+
+            if (!soundRef.current) return;
+
             await soundRef.current.pauseAsync();
             setIsPlaying(false);
+
         } catch (error) {
-            console.log(error);
+            console.log("Erro ao pausar áudio:", error);
         }
     }
-    
+
     async function handleNext() {
-        if (soundRef.current) {
-            await soundRef.current.unloadAsync();
+
+        try {
+
+            const nextSongIndex =
+                songIndex + 1 >= relaxSongs.length
+                    ? 0
+                    : songIndex + 1;
+
             setIsPlaying(false);
+            setProgress(0);
+
+            await loadAudio(nextSongIndex);
+
+            setSongIndex(nextSongIndex);
+
+            await soundRef.current.playAsync();
+
+            setIsPlaying(true);
+
+        } catch (error) {
+            console.log("Erro ao trocar música:", error);
         }
-        const nextSongIndex = songIndex + 1 >= relaxSongs.length ? 0 : songIndex + 1;
-        setSongIndex(nextSongIndex);
-        const { sound: nextSound } = await Audio.Sound.createAsync(relaxSongs[nextSongIndex].url);
-        setSound(nextSound);
-        soundRef.current = nextSound; // atribui o objeto de áudio ao ref
-        playSound();
     }
-    
+
     async function handlePrevious() {
-        if (soundRef.current) {
-            await soundRef.current.unloadAsync();
+
+        try {
+
+            const previousSongIndex =
+                songIndex - 1 < 0
+                    ? relaxSongs.length - 1
+                    : songIndex - 1;
+
             setIsPlaying(false);
+            setProgress(0);
+
+            await loadAudio(previousSongIndex);
+
+            setSongIndex(previousSongIndex);
+
+            await soundRef.current.playAsync();
+
+            setIsPlaying(true);
+
+        } catch (error) {
+            console.log("Erro ao voltar música:", error);
         }
-        const previousSongIndex = songIndex - 1 < 0 ? relaxSongs.length - 1 : songIndex - 1;
-        setSongIndex(previousSongIndex);
-        const { sound: nextSound } = await Audio.Sound.createAsync(relaxSongs[previousSongIndex].url);
-        setSound(nextSound);
-        soundRef.current = nextSound; // atribui o objeto de áudio ao ref
-        playSound();
     }
 
     function formatDuration(duration) {
+
+        if (!duration) {
+            return "00:00";
+        }
+
         const minutes = Math.floor(duration / 60000);
         const seconds = Math.floor((duration % 60000) / 1000);
-        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      }
+
+        return `${minutes.toString().padStart(2, '0')}:${seconds
+            .toString()
+            .padStart(2, '0')}`;
+    }
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.maincontainer}  >
 
-            <View style={styles.touchableContainer}>
-                <TouchableOpacity onPress={() => { navigation.navigate('Music'); }}>
-                    <Ionicons name={Platform.OS === 'ios' ? 'ios-arrow-back' : 'md-arrow-back'} size={24} color="white" />
-                </TouchableOpacity>
-            </View>
+            <View style={styles.maincontainer}>
 
-                {/* image */}
-                <Animatable.Image style={styles.artwork} source={relaxSongs[songIndex].artwork } animation='fadeInDown' />
+                <View style={styles.touchableContainer}>
+                    <TouchableOpacity
+                        onPress={async () => {
+                            await unloadAudio();
+                            navigation.navigate('Music');
+                        }}
+                    >
+                        <Ionicons
+                            name={
+                                Platform.OS === 'ios'
+                                    ? 'ios-arrow-back'
+                                    : 'md-arrow-back'
+                            }
+                            size={28}
+                            color="white"
+                        />
+                    </TouchableOpacity>
+                </View>
 
-                {/* Song Content */}
+                <Animatable.Image
+                    animation='fadeInDown'
+                    style={styles.artwork}
+                    source={relaxSongs[songIndex].artwork}
+                />
+
                 <Animatable.View animation='fadeInRight'>
-                    <Text style={[styles.songContent, styles.songTitle]}> {relaxSongs[songIndex].title} </Text>
-                    <Text style={[styles.songContent, styles.songArtist]}> {relaxSongs[songIndex].artist} </Text>
+                    <Text style={[styles.songContent, styles.songTitle]}>
+                        {relaxSongs[songIndex].title}
+                    </Text>
+
+                    <Text style={[styles.songContent, styles.songArtist]}>
+                        {relaxSongs[songIndex].artist}
+                    </Text>
                 </Animatable.View>
 
-                {/* slider */}
                 <Animatable.View animation='fadeInLeft'>
+
                     <Slider
                         style={styles.progressBar}
                         value={progress}
@@ -132,40 +247,72 @@ export default function Music() {
                         thumbTintColor="#FFFFFF"
                         minimumTrackTintColor="#FFFFFF"
                         maximumTrackTintColor="#000000"
-                        onSlidingComplete={() => { }}
+                        disabled
                     />
-                    { /* music progress durations */}
+
                     <View style={styles.progressLevelDuration}>
-                        <Text style={styles.progressLabelText}>{formatDuration(currentDuration)}</Text>
-                        <Text style={styles.progressLabelText}>{formatDuration(totalDuration)}</Text>
+
+                        <Text style={styles.progressLabelText}>
+                            {formatDuration(currentDuration)}
+                        </Text>
+
+                        <Text style={styles.progressLabelText}>
+                            {formatDuration(totalDuration)}
+                        </Text>
+
                     </View>
+
                 </Animatable.View>
 
-                {/* music controls */}
-                <Animatable.View style={styles.musicControlsContainer} animation='fadeInUp'>
-                    <TouchableOpacity onPress={() => handlePrevious()}>
-                        <Ionicons name="play-skip-back-outline" size={45} color="#ffffff" />
+                <Animatable.View
+                    style={styles.musicControlsContainer}
+                    animation='fadeInUp'
+                >
+
+                    <TouchableOpacity onPress={handlePrevious}>
+                        <Ionicons
+                            name="play-skip-back-outline"
+                            size={45}
+                            color="#ffffff"
+                        />
                     </TouchableOpacity>
 
                     {isPlaying ? (
-                        <TouchableOpacity style={styles.controlButton} onPress={() => pauseSound()}>
-                            <Ionicons name="ios-pause-circle" size={80} color="#fff" />
+                        <TouchableOpacity onPress={pauseSound}>
+                            <Ionicons
+                                name="ios-pause-circle"
+                                size={80}
+                                color="#fff"
+                            />
                         </TouchableOpacity>
                     ) : (
-                        <TouchableOpacity style={styles.controlButton} onPress={() => playSound()}>
-                            <Ionicons name="ios-play-circle" size={80} color="#fff" />
+                        <TouchableOpacity onPress={playSound}>
+                            <Ionicons
+                                name="ios-play-circle"
+                                size={80}
+                                color="#fff"
+                            />
                         </TouchableOpacity>
                     )}
-                    <TouchableOpacity onPress={() => handleNext()}>
-                        <Ionicons name="play-skip-forward-outline" size={45} color="#ffffff" />
+
+                    <TouchableOpacity onPress={handleNext}>
+                        <Ionicons
+                            name="play-skip-forward-outline"
+                            size={45}
+                            color="#ffffff"
+                        />
                     </TouchableOpacity>
+
                 </Animatable.View>
+
             </View>
+
         </SafeAreaView>
-    )
+    );
 }
 
 const styles = StyleSheet.create({
+
     container: {
         flex: 1,
         backgroundColor: '#556aa9'
@@ -175,14 +322,14 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 20
+        paddingBottom: hp('2%')
     },
 
-    songContent: {
-        fontSize: 18,
-        fontWeight: '300',
-        textAlign: 'center',
-        color: '#EEEEEE',
+    touchableContainer: {
+        position: 'absolute',
+        top: hp('6%'),
+        left: wp('6%'),
+        zIndex: 10
     },
 
     artwork: {
@@ -190,33 +337,34 @@ const styles = StyleSheet.create({
         height: hp('40%'),
         borderRadius: wp('10%'),
         marginBottom: hp('4%'),
-        marginTop: hp('8%')
-      },  
-    
+    },
+
+    songContent: {
+        textAlign: 'center',
+        color: '#EEEEEE',
+    },
+
     songTitle: {
         fontSize: wp('7%'),
         fontWeight: 'bold',
-        textAlign: 'center',
-        color: '#EEEEEE'
     },
 
     songArtist: {
-        fontSize:  wp('4%'),
-        textAlign: 'center',
-        color: '#EEEEEE'
+        fontSize: wp('4%'),
+        marginTop: hp('1%'),
     },
 
     progressBar: {
         width: wp('85%'),
         height: hp('2%'),
-        marginTop: 25,
-        flexDirection: 'row'
+        marginTop: hp('3%'),
     },
 
     progressLevelDuration: {
         width: wp('85%'),
         flexDirection: 'row',
         justifyContent: 'space-between',
+        marginTop: hp('1%'),
     },
 
     progressLabelText: {
@@ -230,10 +378,6 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         width: wp('60%'),
         marginTop: hp('5%'),
-        marginBottom: ('8%')
     },
 
-    touchableContainer: {
-        marginRight: wp('80%'),
-    },
 });
